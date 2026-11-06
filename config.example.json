@@ -1,0 +1,18 @@
+{
+  "owner": "홍길동",
+  "title": "홍길동 관제탑",
+  "subtitle": "AI 에이전트 시스템",
+  "theme": "dark",
+  "accent": "#ef6c4d",
+  "vault_path": "",
+  "obsidian_vault_name": "",
+  "skill_dirs": ["~/.claude/skills"],
+  "briefing_time": "09:00",
+  "category_rules": {
+    "콘텐츠": ["blog", "youtube", "video", "image", "thumbnail", "social", "copy", "news"],
+    "지식": ["note", "memory", "research", "watch", "obsidian", "기록"],
+    "시스템": ["briefing", "skill", "connector", "browser", "setup"],
+    "마케팅": ["seo", "ads", "marketing", "email", "pricing", "launch", "strategy"],
+    "개발": ["tdd", "code", "test", "frontend", "architecture"]
+  }
+}

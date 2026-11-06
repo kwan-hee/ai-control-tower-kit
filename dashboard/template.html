@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 관제탑</title>
+<style>
+:root {
+  --bg: #0b0b0b; --panel: #121212; --ink: #f2f0ec; --muted: #8d8a85; --dim: #5a5753; --line: #262422;
+  --accent: #ef6c4d; --accent-2: #ff9a7a; --accent-soft: rgba(239,108,77,.16); --cell: #1d1b1a; --ok: #7bd389;
+  --mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+}
+:root[data-theme="light"] {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1c1a; --muted: #6f6c66; --dim: #b4b0a8; --line: #e2dfd8;
+  --cell: #ebe8e2;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font: 14px/1.5 "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; }
+button { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 26px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand b { font-size: 20px; letter-spacing: .02em; color: var(--accent); font-weight: 800; }
+.brand span { color: var(--muted); font-size: 12px; border-left: 1px solid var(--line); padding-left: 12px; }
+.clock { font-family: var(--mono); font-size: 13px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.clock::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
+
+.grid { display: grid; grid-template-columns: 450px minmax(0, 1fr) 450px; gap: 0 34px; padding: 0 26px 26px; }
+@media (max-width: 1400px) { .grid { grid-template-columns: 360px minmax(0, 1fr) 380px; gap: 0 24px; } }
+@media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } .center { order: -1; } }
+@media (max-width: 600px) { .grid, .top { padding-left: 16px; padding-right: 16px; } }
+.col { min-width: 0; }
+
+.sec { border-top: 2px solid var(--accent); padding: 16px 0 20px; }
+.sec-h { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 16px; font-weight: 700; }
+.sec-h .sub { font-size: 12.5px; color: var(--muted); font-weight: 400; }
+.sec-h .right { margin-left: auto; }
+.ico { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; flex: none; }
+
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+.stats .sec { padding-bottom: 14px; }
+.big { font-size: 34px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.big small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+.cap { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; background: var(--cell); border-radius: 999px;
+  padding: 3px 10px; font-size: 12px; font-weight: 700; margin-top: 10px; }
+.pill + .cap { display: inline; margin-left: 6px; }
+.status { font-size: 12px; color: var(--muted); margin-top: 12px; display: flex; align-items: center; gap: 6px; }
+.status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+.todo { list-style: none; margin: 0; padding: 0; }
+.todo li { display: flex; gap: 10px; padding: 6px 0; font-size: 13.5px; }
+.todo li span { font-family: var(--mono); color: var(--accent); }
+
+.cal-head { display: grid; grid-template-columns: 34px repeat(7, 22px) 1fr; gap: 4px 6px; align-items: center;
+  font-size: 11.5px; color: var(--muted); }
+.cal-head .wk-label { padding-left: 8px; }
+.cal-row { display: grid; grid-template-columns: 34px repeat(7, 22px) 1fr 18px; gap: 6px; align-items: center;
+  margin-top: 5px; font-size: 11.5px; color: var(--muted); }
+.day { width: 22px; height: 20px; border-radius: 3px; background: var(--cell); border: 0; padding: 0; cursor: pointer; position: relative; }
+.day.out { visibility: hidden; }
+.day.has { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); } .day.has2 { background: var(--accent); }
+.day.today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.day.today::after { content: ""; position: absolute; inset: 0; margin: auto; width: 4px; height: 4px; border-radius: 50%; background: var(--ink); }
+.day.sel { box-shadow: 0 0 0 2px var(--accent-2); }
+.bar { height: 4px; background: var(--cell); border-radius: 2px; overflow: hidden; margin-left: 8px; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.cal-row .cnt { font-family: var(--mono); color: var(--ink); text-align: right; }
+.cal-nav { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 13px; }
+.cal-nav button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 15px; }
+.day-detail { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; font-size: 13.5px; }
+.day-detail .row { display: flex; gap: 14px; padding: 5px 0; }
+.day-detail .row .t { font-family: var(--mono); color: var(--muted); min-width: 44px; }
+
+.files a { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.files a span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.files a span:last-child { color: var(--muted); font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+.files a:hover span:first-child { color: var(--accent-2); }
+
+.dash-card { display: flex; align-items: center; gap: 14px; border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 10px; background: var(--panel); }
+.dash-card:hover { border-color: var(--accent); }
+.dash-card .ic { width: 36px; height: 36px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; flex: none; }
+.dash-card .ic svg { stroke: #fff; }
+.dash-card b { display: block; font-size: 14px; }
+.dash-card small { color: var(--muted); font-size: 12px; }
+.dash-card .go { margin-left: auto; color: var(--muted); }
+
+.center .sec { position: sticky; top: 0; height: calc(100vh - 70px); min-height: 620px; display: flex; flex-direction: column; }
+@media (max-width: 1100px) { .center .sec { position: static; height: auto; min-height: 0; } }
+.brain-meta { font-size: 12.5px; color: var(--muted); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.stage { position: relative; flex: 1; min-height: 560px; }
+@media (max-width: 1100px) { .stage { min-height: 440px; } }
+canvas#brain { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: default; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; font-size: 12.5px; transform: translate(-50%, calc(-100% - 14px)); opacity: 0; transition: opacity .12s; white-space: nowrap; }
+.tip b { color: var(--accent-2); }
+.drawer { position: absolute; left: 0; right: 0; bottom: 0; max-height: 46%; overflow: auto; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: none; }
+.drawer.open { display: block; }
+.drawer h4 { margin: 0 0 8px; font-size: 14px; display: flex; justify-content: space-between; }
+.drawer h4 button { background: none; border: 0; color: var(--muted); cursor: pointer; }
+.drawer a { display: block; padding: 4px 0; font-size: 13px; border-bottom: 1px dashed var(--line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer a:hover { color: var(--accent-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0; }
+.legend button:hover { color: var(--ink); }
+.legend b { color: var(--ink); font-weight: 600; }
+
+.count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; background: var(--ink);
+  color: var(--bg); font-size: 12px; font-weight: 800; padding: 0 5px; }
+.mail { max-height: 330px; overflow: auto; }
+.mail .m { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.mail .box { width: 14px; height: 14px; border: 1.5px solid var(--dim); border-radius: 3px; margin-top: 3px; }
+.mail .from { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail .subj { font-size: 13px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail .subj.plain { color: var(--muted); }
+.mail .time { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.foot { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+.search { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 12px; margin-left: 12px; min-width: 0; }
+.search input { background: none; border: 0; color: var(--ink); font: inherit; font-size: 13px; width: 100%; outline: none; }
+.search:focus-within { border-color: var(--accent); }
+.skills { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 330px; overflow: auto; padding-right: 2px; }
+@media (max-width: 600px) { .skills { grid-template-columns: 1fr; } }
+.sk { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--panel); text-align: left; cursor: pointer; min-width: 0; }
+.sk:hover { border-color: var(--accent); }
+.sk .nm { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk .nm em { font-style: normal; color: var(--muted); font-weight: 400; }
+.sk .ds { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 2px 0 8px; }
+.sk .run { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.sk .run i { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); display: grid; place-items: center; }
+.sk .run i::before { content: ""; border-left: 8px solid var(--bg); border-top: 5px solid transparent; border-bottom: 5px solid transparent; margin-left: 2px; }
+
+.rt { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.rt b { font-size: 14px; }
+.tag { font-size: 10.5px; border: 1px solid var(--ink); border-radius: 4px; padding: 0 5px; margin-left: 6px; vertical-align: 2px; }
+.rt .s1 { font-size: 12.5px; color: var(--muted); }
+.rt .s2 { font-size: 12px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+
+.empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+.toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); background: var(--ink); color: var(--bg);
+  padding: 10px 16px; border-radius: 8px; font-size: 13.5px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
+.toast.show { opacity: 1; }
+:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-brain" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M7 8c2 1 3 3 5 3s3-2 5-3M7 16c2-1 3-3 5-3s3 2 5 3"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="m4 20 11-11M14 4v3M18 6l-2 2M20 10h-3"/></symbol>
+  <symbol id="i-loop" viewBox="0 0 24 24"><path d="M4 10a6 6 0 0 1 10-4l3 3M20 14a6 6 0 0 1-10 4l-3-3M17 4v5h-5M7 20v-5h5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand"><b id="brandTitle">AI 관제탑</b><span id="brandSub">AI 에이전트 시스템</span></div>
+  <div class="clock" id="clock"></div>
+</header>
+
+<div class="grid">
+  <!-- LEFT -->
+  <div class="col">
+    <div class="stats">
+      <section class="sec">
+        <h2 class="sec-h"><svg class="ico"><use href="#i-note"/></svg>세컨드 브레인</h2>
+        <div class="big" id="noteCount">0<small>개</small></div>
+        <div class="cap" id="noteCap">노트</div>
+        <span class="pill" id="noteDelta"></span><span class="cap">최근 7일</span>
+        <div class="status" id="buildStatus"></div>
+      </section>
+      <section class="sec">
+        <h2 class="sec-h"><svg class="ico"><use href="#i-bolt"/></svg>스킬</h2>
+        <div class="big" id="skillBig">0<small>개</small></div>
+        <div class="cap">AI 단축키</div>
+        <span class="pill" id="skillDelta"></span><span class="cap">시스템 전용</span>
+        <div class="status" id="briefStatus"></div>
+      </section>
+    </div>
+
+    <section class="sec">
+      <h2 class="sec-h"><svg class="ico"><use href="#i-target"/></svg>오늘 꼭 할 일 <span class="sub" id="todoDate"></span></h2>
+      <ul class="todo" id="todo"></ul>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-h"><svg class="ico"><use href="#i-cal"/></svg>캘린더 <span class="sub">브리핑 기록</span>
+        <span class="right cal-nav"><button id="prevM" aria-label="이전 달">‹</button><span id="monthLabel"></span><button id="nextM" aria-label="다음 달">›</button></span></h2>
+      <div class="cal-head"><span></span><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span class="wk-label">주간 기록</span></div>
+      <div id="calRows"></div>
+      <div class="day-detail" id="dayDetail"></div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-h"><svg class="ico"><use href="#i-clock"/></svg>최근 파일</h2>
+      <div class="files" id="files"></div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-h"><svg class="ico"><use href="#i-grid"/></svg>길잡이</h2>
+      <div id="guides"></div>
+    </section>
+  </div>
+
+  <!-- CENTER -->
+  <div class="col center">
+    <section class="sec">
+      <h2 class="sec-h"><svg class="ico"><use href="#i-brain"/></svg>세컨드 브레인 <span class="brain-meta" id="brainMeta"></span></h2>
+      <div class="stage" id="stage">
+        <canvas id="brain" role="img" aria-label="vault 폴더별 노트 분포 지도"></canvas>
+        <div class="tip" id="tip"></div>
+        <div class="drawer" id="drawer"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </section>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col">
+    <section class="sec">
+      <h2 class="sec-h"><svg class="ico"><use href="#i-mail"/></svg>이메일 <span class="count" id="mailCount">0</span> <span class="sub">받은편지함 · 최근 24시간</span></h2>
+      <div class="mail" id="mail"></div>
+      <div class="foot" id="mailFoot"></div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-h"><svg class="ico"><use href="#i-wand"/></svg>스킬 <span class="sub" id="skillCount"></span>
+        <label class="search"><svg class="ico"><use href="#i-search"/></svg><input id="skillQ" type="search" placeholder="스킬 검색" aria-label="스킬 검색"></label></h2>
+      <div class="skills" id="skills"></div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-h"><svg class="ico"><use href="#i-loop"/></svg>루틴 <span class="sub">예약 작업</span></h2>
+      <div id="routines"></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DASH = /*__DASH_DATA__*/null;
+(function () {
+  const D = DASH;
+  const $ = (id) => document.getElementById(id);
+  if (!D) { document.body.innerHTML = '<p class="empty" style="padding:24px">이 파일은 템플릿입니다. <code>python dashboard\\build.py</code>를 실행한 뒤 index.html을 여세요.</p>'; return; }
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fileUrl = (p) => "file:///" + p.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/").replace(/^([A-Za-z])%3A/, "$1:");
+  // Notes open in Obsidian when the folder is an Obsidian vault, otherwise as plain files.
+  const obsidianUrl = (rel) => D.vault.name
+    ? "obsidian://open?vault=" + encodeURIComponent(D.vault.name) + "&file=" + encodeURIComponent(rel.replace(/\.md$/, ""))
+    : fileUrl(D.vault.path + "\\" + rel.replace(/\//g, "\\"));
+
+  // ---- config: title, theme, accent ----
+  const C = D.config || {};
+  document.title = C.title || "AI 관제탑";
+  $("brandTitle").textContent = C.title || "AI 관제탑";
+  $("brandSub").textContent = C.subtitle || "";
+  if (C.theme === "light") document.documentElement.dataset.theme = "light";
+  const hex = /^#[0-9a-f]{6}$/i.test(C.accent || "") ? C.accent : "#ef6c4d";
+  const RGB = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const LIGHT = RGB.map((v) => Math.round(v + (255 - v) * 0.4));
+  const rgba = (c, a) => `rgba(${c.join(",")},${a})`;
+  const rs = document.documentElement.style;
+  rs.setProperty("--accent", hex); rs.setProperty("--accent-2", rgba(LIGHT, 1)); rs.setProperty("--accent-soft", rgba(RGB, 0.18));
+  $("noteCap").textContent = D.vault.name ? "Obsidian vault 노트" : "노트 폴더";
+  const BG = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#0b0b0b";
+  const pad = (n) => String(n).padStart(2, "0");
+  const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+  function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 1700); }
+  async function copy(text) { try { await navigator.clipboard.writeText(text); toast("복사했습니다 · " + text); } catch (e) { toast(text); } }
+
+  // ---- clock ----
+  const tick = () => { const n = new Date(); $("clock").textContent = `${n.getMonth() + 1}월 ${n.getDate()}일 ${WEEK[n.getDay()]}요일 ${pad(n.getHours())}:${pad(n.getMinutes())}`; };
+  tick(); setInterval(tick, 20000);
+
+  // ---- stats ----
+  const V = D.vault, B = D.briefings || { dates: [], latest: null }, L = B.latest;
+  $("noteCount").innerHTML = (V.notes || []).length.toLocaleString() + "<small>개</small>";
+  $("noteDelta").textContent = "↑ " + (V.recent7 || 0);
+  $("buildStatus").textContent = "갱신 " + D.builtAt.slice(5).replace("-", ".");
+  const sys = D.skills.filter((s) => s.scope === "시스템").length;
+  $("skillBig").innerHTML = D.skills.length + "<small>개</small>";
+  $("skillDelta").textContent = "+ " + sys;
+  $("briefStatus").textContent = L ? "브리핑 " + L.date.slice(5).replace("-", ".") + " 기준" : "브리핑 없음";
+
+  // ---- todo ----
+  $("todoDate").textContent = L ? L.date : "";
+  $("todo").innerHTML = L && L.top3.length ? L.top3.map((t, i) => `<li><span>${pad(i + 1)}</span>${esc(t)}</li>`).join("")
+    : '<li class="empty">브리핑이 생기면 여기에 오늘 꼭 할 일 3개가 나타납니다.</li>';
+
+  // ---- calendar ----
+  const briefSet = new Set(B.dates);
+  const events = (L && L.events) || [];
+  const evByDate = events.reduce((m, e) => ((m[e.date] = m[e.date] || []).push(e), m), {});
+  const today = new Date(); let view = new Date(today.getFullYear(), today.getMonth(), 1); let selected = ymd(today);
+  function renderCal() {
+    $("monthLabel").textContent = `${view.getFullYear()}.${pad(view.getMonth() + 1)}`;
+    const first = new Date(view), start = new Date(first); start.setDate(1 - first.getDay());
+    let html = "";
+    for (let w = 0; w < 6; w++) {
+      const days = []; let count = 0, inMonth = false;
+      for (let d = 0; d < 7; d++) {
+        const cur = new Date(start); cur.setDate(start.getDate() + w * 7 + d);
+        const key = ymd(cur), out = cur.getMonth() !== view.getMonth(); if (!out) inMonth = true;
+        const n = (briefSet.has(key) ? 1 : 0) + (evByDate[key] || []).length; if (!out) count += n;
+        const cls = ["day", out && "out", n === 1 && "has", n > 1 && "has2", key === ymd(today) && "today", key === selected && "sel"].filter(Boolean).join(" ");
+        days.push(`<button class="${cls}" data-k="${key}" aria-label="${key}" ${out ? 'tabindex="-1"' : ""}></button>`);
+      }
+      if (!inMonth) continue;
+      html += `<div class="cal-row"><span>${w + 1}주차</span>${days.join("")}<span class="bar"><i style="width:${Math.min(count / 7, 1) * 100}%"></i></span><span class="cnt">${count}</span></div>`;
+    }
+    $("calRows").innerHTML = html; renderDay();
+  }
+  function renderDay() {
+    const d = new Date(selected + "T00:00");
+    const evs = evByDate[selected] || [], hasBrief = briefSet.has(selected);
+    let rows = evs.map((e) => `<div class="row"><span class="t">${esc(e.time || "")}</span>${esc(e.title)}</div>`).join("");
+    if (hasBrief) rows += `<div class="row"><span class="t">09:00</span><a href="${fileUrl(D.root + "\\logs\\briefings\\" + selected + ".md")}">모닝 브리핑 기록 ↗</a></div>`;
+    $("dayDetail").innerHTML = `<b>${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEK[d.getDay()]})</b> <span class="sub" style="color:var(--muted);font-size:12.5px">일정 ${evs.length}건</span>` +
+      (rows || '<div class="empty">기록된 일정이 없습니다.</div>');
+  }
+  $("calRows").addEventListener("click", (e) => { const b = e.target.closest(".day"); if (!b || b.classList.contains("out")) return; selected = b.dataset.k; renderCal(); });
+  $("prevM").onclick = () => { view.setMonth(view.getMonth() - 1); renderCal(); };
+  $("nextM").onclick = () => { view.setMonth(view.getMonth() + 1); renderCal(); };
+  renderCal();
+
+  // ---- recent files ----
+  $("files").innerHTML = (V.recent || []).slice(0, 7).map((r) => `<a href="${obsidianUrl(r.rel)}" title="${esc(r.rel)}"><span>${esc(r.rel.split("/").pop().replace(/\.md$/, ""))}</span><span>${esc(r.mtime.slice(5))}</span></a>`).join("") || '<div class="empty">vault를 찾지 못했습니다.</div>';
+
+  // ---- guides as cards ----
+  $("guides").innerHTML = D.guides.filter((g) => g.file !== "CLAUDE.md").map((g) => `
+    <a class="dash-card" href="${fileUrl(g.path)}"><span class="ic"><svg class="ico"><use href="#i-book"/></svg></span>
+      <span><b>${esc(g.title.replace(/ 길잡이.*$/, ""))}</b><small>${g.links.length}개 연결 · ${esc(g.file)}</small></span><span class="go">↗</span></a>`).join("");
+
+  // ---- emails ----
+  const mails = (L && L.emails) || [];
+  const important = mails.filter((m) => /답장|확인/.test(m.tag || "")).length;
+  $("mailCount").textContent = mails.length;
+  $("mail").innerHTML = mails.map((m) => `<div class="m"><span class="box"></span><div style="min-width:0"><div class="from">${esc(m.from)}</div>
+      <div class="subj ${/답장|확인/.test(m.tag || "") ? "" : "plain"}">${esc(m.subject)}</div></div><span class="time">${esc((m.time || "").slice(5, 10).replace("-", "."))}</span></div>`).join("")
+    || '<div class="empty">브리핑에 메일 데이터가 없습니다.</div>';
+  $("mailFoot").textContent = L ? `${L.date} 브리핑 기준 · 확인 필요 ${important}건` : "";
+
+  // ---- skills ----
+  function renderSkills(q) {
+    q = (q || "").trim().toLowerCase();
+    const list = D.skills.filter((s) => !q || (s.name + " " + s.description + " " + s.category).toLowerCase().includes(q))
+      .sort((a, b) => (a.scope === "시스템" ? -1 : 0) - (b.scope === "시스템" ? -1 : 0));
+    $("skillCount").textContent = list.length;
+    $("skills").innerHTML = list.map((s) => `<button class="sk" data-n="${esc(s.name)}" title="${esc(s.description)}">
+      <div class="nm"><em>${esc(s.category)} · </em>${esc(s.name)}</div><div class="ds">${esc(s.description || "설명 없음")}</div>
+      <div class="run"><i></i>${s.scope === "시스템" ? "시스템 전용" : "명령 복사"}</div></button>`).join("") || '<div class="empty">결과 없음</div>';
+  }
+  $("skillQ").addEventListener("input", (e) => renderSkills(e.target.value));
+  $("skills").addEventListener("click", (e) => { const b = e.target.closest(".sk"); if (b) copy("/" + b.dataset.n); });
+  renderSkills("");
+
+  // ---- routines ----
+  $("routines").innerHTML = D.routines.map((r) => `<div class="rt"><b>${esc(r.name)}</b><span class="tag">${r.scheduledTaskId ? "예약됨" : "미등록"}</span>
+      <div class="s1">${esc(r.schedule)} · ${r.scheduledTaskId ? "예약됨" : "미등록"}</div>
+      <div class="s2">스킬 ${esc(r.skill)}${r.registered ? " · 등록 " + esc(r.registered.slice(5).replace("-", ".")) : ""}</div></div>`).join("") || '<div class="empty">루틴 없음</div>';
+
+  // ---- second brain particles ----
+  const groups = [];
+  const folderNotes = {};
+  (V.notes || []).forEach((rel) => { const top = rel.includes("/") ? rel.split("/")[0] : "(최상위)"; (folderNotes[top] = folderNotes[top] || []).push(rel); });
+  const big = Object.entries(folderNotes).sort((a, b) => b[1].length - a[1].length);
+  // Big vaults: folders with 5+ notes get their own cluster. Small (new) vaults: show up to 6 folders as-is.
+  let MAIN = big.filter(([, l]) => l.length >= 5).slice(0, 5);
+  if (MAIN.length < 3) MAIN = big.slice(0, 6);
+  const rest = big.filter((e) => !MAIN.includes(e));
+  MAIN.forEach(([name, list]) => groups.push({ name, kind: "folder", items: list }));
+  if (rest.length) groups.push({ name: "기타 폴더", kind: "folder", items: rest.flatMap(([, l]) => l), sub: rest.map(([n, l]) => `${n} ${l.length}`).join(" · ") });
+  groups.push({ name: "스킬", kind: "skill", items: D.skills.map((s) => s.name) });
+  const guideLinks = D.guides.flatMap((g) => g.links.map((l) => l.target));
+  groups.push({ name: "길잡이", kind: "guide", items: guideLinks });
+
+  $("brainMeta").textContent = "CLAUDE.md 기준 · " + groups.map((g) => `${g.name} ${g.items.length}`).join(" · ");
+  $("legend").innerHTML = groups.map((g, i) => `<button data-i="${i}"><b>${esc(g.name)}</b> ${g.items.length}</button>`).join("");
+
+  const cvs = $("brain"), ctx = cvs.getContext("2d"), stage = $("stage");
+  let W = 0, H = 0, DPR = 1, layout = [], hover = -1;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function rand(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+
+  function doLayout() {
+    const r = stage.getBoundingClientRect(); DPR = window.devicePixelRatio || 1; W = r.width; H = r.height;
+    cvs.width = W * DPR; cvs.height = H * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const cx = W / 2, cy = H / 2, unit = Math.min(W, H);
+    const maxN = Math.max(...groups.map((g) => g.items.length));
+    const ringR = unit * 0.31;
+    layout = groups.map((g, i) => {
+      const a = -Math.PI / 2 + (i / groups.length) * Math.PI * 2;
+      // Keep neighbours apart: radius is capped by half the gap between ring slots.
+      const slotGap = 2 * ringR * Math.sin(Math.PI / groups.length);
+      const rad = Math.min(unit * (0.06 + 0.08 * Math.sqrt(g.items.length / maxN)), slotGap * 0.46);
+      const x = cx + ringR * Math.cos(a), y = cy + ringR * Math.sin(a);
+      const rnd = rand(i * 97 + 13), n = Math.min(Math.max(g.items.length * 4, 60), 520), dots = [];
+      for (let k = 0; k < n; k++) {
+        const t = k / n, ang = k * 2.39996, rr = rad * Math.sqrt(t) * (0.92 + rnd() * 0.12);
+        dots.push({ x: x + rr * Math.cos(ang), y: y + rr * Math.sin(ang), s: 0.8 + rnd() * (g.kind === "folder" ? 1.6 : 1.1), p: rnd() * Math.PI * 2 });
+      }
+      return { g, x, y, rad, dots };
+    });
+  }
+
+  function draw(time) {
+    ctx.clearRect(0, 0, W, H);
+    const cx = W / 2, cy = H / 2;
+    layout.forEach((L2, i) => {
+      ctx.strokeStyle = i === hover ? rgba(LIGHT, .45) : rgba(RGB, .14); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(L2.x, L2.y); ctx.stroke();
+    });
+    layout.forEach((L2, i) => {
+      const glow = ctx.createRadialGradient(L2.x, L2.y, 0, L2.x, L2.y, L2.rad * 1.25);
+      glow.addColorStop(0, rgba(RGB, i === hover ? .30 : .16)); glow.addColorStop(1, rgba(RGB, 0));
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(L2.x, L2.y, L2.rad * 1.25, 0, Math.PI * 2); ctx.fill();
+      for (const d of L2.dots) {
+        const a = reduce ? 0.8 : 0.55 + 0.45 * Math.sin(time / 900 + d.p);
+        ctx.fillStyle = rgba(i === hover ? LIGHT : RGB, a);
+        ctx.beginPath(); ctx.arc(d.x, d.y, d.s, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = hex; ctx.strokeStyle = BG; ctx.lineWidth = 2;
+      if (L2.g.kind === "skill" || L2.g.kind === "guide") { ctx.fillRect(L2.x - 8, L2.y - 8, 16, 16); ctx.strokeRect(L2.x - 8, L2.y - 8, 16, 16); }
+      else { ctx.beginPath(); ctx.arc(L2.x, L2.y, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    });
+    const pulse = reduce ? 1 : 1 + 0.08 * Math.sin(time / 600);
+    const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 46 * pulse);
+    cg.addColorStop(0, rgba(RGB, .55)); cg.addColorStop(1, rgba(RGB, 0));
+    ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(cx, cy, 46 * pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = rgba(LIGHT, 1); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, 13, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = rgba(LIGHT, 1); ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+    if (!reduce) requestAnimationFrame(draw);
+  }
+
+  function hit(e) {
+    const r = cvs.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (Math.hypot(x - W / 2, y - H / 2) < 22) return { i: "c", x, y };
+    const i = layout.findIndex((L2) => Math.hypot(x - L2.x, y - L2.y) < L2.rad); return { i, x, y };
+  }
+  cvs.addEventListener("mousemove", (e) => {
+    const h = hit(e), tip = $("tip");
+    hover = typeof h.i === "number" ? h.i : -1; cvs.style.cursor = h.i === -1 ? "default" : "pointer";
+    if (h.i === -1) { tip.style.opacity = 0; } else {
+      const g = h.i === "c" ? null : layout[h.i].g;
+      tip.innerHTML = g ? `<b>${esc(g.name)}</b> · ${g.items.length}개${g.sub ? "<br><span style='color:var(--muted)'>" + esc(g.sub) + "</span>" : ""}` : "<b>CLAUDE.md</b> · 관제탑 대문";
+      tip.style.left = h.x + "px"; tip.style.top = h.y + "px"; tip.style.opacity = 1;
+    }
+    if (reduce) draw(0);
+  });
+  cvs.addEventListener("mouseleave", () => { hover = -1; $("tip").style.opacity = 0; if (reduce) draw(0); });
+
+  function openGroup(i) {
+    const dr = $("drawer");
+    if (i === "c") { location.href = fileUrl(D.root + "\\CLAUDE.md"); return; }
+    const g = groups[i];
+    const links = g.items.slice(0, 200).map((it) => {
+      if (g.kind === "folder") return `<a href="${obsidianUrl(it)}">${esc(it)}</a>`;
+      if (g.kind === "skill") return `<a href="#" data-copy="/${esc(it)}">/${esc(it)}</a>`;
+      return /^[A-Za-z]:\\/.test(it) ? `<a href="${fileUrl(it)}">📁 ${esc(it)}</a>` : `<a href="${obsidianUrl(it)}">📝 ${esc(it)}</a>`;
+    }).join("");
+    dr.innerHTML = `<h4>${esc(g.name)} · ${g.items.length}개 <button aria-label="닫기">✕</button></h4>${links}`;
+    dr.classList.add("open");
+  }
+  cvs.addEventListener("click", (e) => { const h = hit(e); if (h.i !== -1) openGroup(h.i); });
+  $("legend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) openGroup(+b.dataset.i); });
+  $("drawer").addEventListener("click", (e) => {
+    if (e.target.closest("h4 button")) { $("drawer").classList.remove("open"); return; }
+    const c = e.target.closest("[data-copy]"); if (c) { e.preventDefault(); copy(c.dataset.copy); }
+  });
+
+  new ResizeObserver(() => { doLayout(); if (reduce) draw(0); }).observe(stage);
+  doLayout(); requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

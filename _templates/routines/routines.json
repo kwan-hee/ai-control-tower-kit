@@ -1,0 +1,31 @@
+{
+  "routines": [
+    {
+      "id": "morning-briefing",
+      "name": "데일리 모닝 브리핑",
+      "schedule": "매일 {{BRIEFING_TIME}}",
+      "skill": "morning-briefing",
+      "prompt": "{{ROOT}}\\.claude\\skills\\morning-briefing\\SKILL.md를 읽고 그대로 따라서 오늘의 브리핑을 만들고 저장해 줘.",
+      "cwd": "{{ROOT}}",
+      "enabled": true
+    },
+    {
+      "id": "inbox-cleanup",
+      "name": "노트 Inbox 정리",
+      "schedule": "매주 일요일 21:00",
+      "skill": "(없음)",
+      "prompt": "{{VAULT}}\\00_Inbox의 파일을 읽고 각 파일을 어느 폴더로 옮기면 좋을지 표로 제안해서 {{ROOT}}\\logs\\inbox-reviews\\YYYY-MM-DD.md에 저장해 줘. 파일은 옮기지 마.",
+      "cwd": "{{ROOT}}",
+      "enabled": true
+    },
+    {
+      "id": "weekly-skill-review",
+      "name": "주간 스킬 점검",
+      "schedule": "매주 금요일 18:00",
+      "skill": "skill-improver",
+      "prompt": "{{ROOT}}\\.claude\\skills\\skill-improver\\SKILL.md를 따라 이번 주 가장 많이 쓴 스킬 1개의 개선안을 표로 만들어 {{ROOT}}\\logs\\skill-reviews\\YYYY-MM-DD.md에 저장해 줘. 스킬 파일은 고치지 마.",
+      "cwd": "{{ROOT}}",
+      "enabled": true
+    }
+  ]
+}
